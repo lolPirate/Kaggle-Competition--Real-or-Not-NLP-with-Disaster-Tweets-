@@ -41,13 +41,15 @@ X_test = pad_sequences(X_test, maxlen=34)
 # Model
 model = Sequential()
 model.add(Embedding(20000, 64, input_length=34))
-model.add(Bidirectional(LSTM(64)))
+model.add(LSTM(64, return_sequences=True, input_shape=(X_train.shape[1], 1)))
+model.add(Dropout(0.2))
+model.add(LSTM(96, return_sequences=True))
+model.add(Dropout(0.2))
+model.add(LSTM(128, return_sequences=True))
+model.add(Dropout(0.2))
 model.add(Dense(1, activation='softmax'))
 
 model.compile(loss = 'binary_crossentropy', optimizer='adam', metrics = ['accuracy'])
-
-model.fit(X_train, y_train, epochs=100, batch_size=32, validation_data=(X_test, y_test))
-
-
-
-
+print(model.summary())
+# Uncomment the next line to inititate training process
+# model.fit(X_train, y_train, epochs=100, batch_size=32, validation_data=(X_test, y_test))
