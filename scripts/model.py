@@ -9,16 +9,18 @@ from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout, Masking, Embedding, Bidirectional
+from keras.models import load_model
 import warnings
 warnings.filterwarnings("ignore")
 
 
-DATA_FOLDER_PATH = os.path.normpath(r'../data/')
+DATA_FOLDER_PATH = os.path.normpath(r'./data/')
+MODEL_FOLDER_PATH = os.path.normpath(r'./models/')
 ## Normalizing paths
 DATA_PATH = os.path.join(DATA_FOLDER_PATH, 'clean_train_data.csv')
 
 # Importing dataset
-data = pd.read_csv('../data/clean_train_data.csv')
+data = pd.read_csv(DATA_PATH)
 
 # Splitting the data
 X = data['text'].values
@@ -60,6 +62,7 @@ model.compile(loss = 'binary_crossentropy', optimizer='adam', metrics = ['accura
 
 # Uncomment the next line to inititate training process
 history = model.fit(X_train, y_train, epochs=10, batch_size=32, validation_data=(X_test, y_test))
+model.save(os.path.join(MODEL_FOLDER_PATH, 'Basic-Model-Prototype-001.h5'))
 
 print(model.evaluate(X_test, y_test))
 
