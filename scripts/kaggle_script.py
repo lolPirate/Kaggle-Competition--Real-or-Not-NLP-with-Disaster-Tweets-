@@ -1,4 +1,5 @@
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1' 
 import string
 import unicodedata
 import re
@@ -7,6 +8,7 @@ from collections import Counter
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split, StratifiedKFold
+from sklearn.feature_extraction.text import TfidfVectorizer
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
 from keras.models import Sequential
@@ -41,7 +43,8 @@ class Data_Loader():
         return(p.sub(r' ', data))
 
     def remove_punctuations(self, data):
-        p = str.maketrans(string.punctuation, ' '*len(string.punctuation))
+        p = str.maketrans("","",string.punctuation)
+        #p = str.maketrans(string.punctuation, ' '*len(string.punctuation))
         return data.translate(p)
 
     def remove_control_characters(self, data):
@@ -72,25 +75,25 @@ class Data_Loader():
         data['text'] = data['text'].apply(lambda x: self.remove_unknown_characters(x, extra_chars))
         data['text'] = data['text'].apply(lambda x: self.remove_extra_spaces(x))
         data = data[['text', 'target']]
-        data.drop_duplicates(inplace=True)
+        data = data.drop_duplicates()
 
         return data
 
 class Disaster_Prediction_Model():
     def create_model(self):
         model = Sequential()
-        model.add(Embedding(20000, 16, mask_zero=True))
-        model.add(Bidirectional(LSTM(32, return_sequences=True)))
+        #model.add(Embedding(20000, 128, mask_zero=True))
+        model.add(Bidirectional(LSTM(64, return_sequences=True, input_shape=(34,1))))
         model.add(Dropout(0.2))
-        model.add(Bidirectional(LSTM(32, return_sequences=True)))
+        model.add(Bidirectional(LSTM(64, return_sequences=True)))
         model.add(Dropout(0.2))
-        model.add(Bidirectional(LSTM(32, return_sequences=True)))
+        model.add(Bidirectional(LSTM(64, return_sequences=True)))
         model.add(Dropout(0.2))
-        model.add(Bidirectional(LSTM(32, return_sequences=False)))
-        model.add(Dropout(0.3))
+        model.add(Bidirectional(LSTM(64, return_sequences=False)))
+        model.add(Dropout(0.2))
         model.add(Dense(1, activation='sigmoid'))
         model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-        return(model)
+        return model
 
 class Agent():
 
@@ -102,22 +105,24 @@ class Agent():
         x = data['text'].values
         y = data['target'].values
 
-        x_train, x_test, y_train, y_test = [], [], [], []
+        x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.25, stratify=y, shuffle=True)
 
-        skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=1)
-        for train_ix, test_ix in skf.split(x, y):
-            x_train, x_test = x[train_ix], x[test_ix]
-            y_train, y_test = y[train_ix], y[test_ix]
-
-        tokenizer = Tokenizer(num_words=20000, lower=True, split=' ')
+        tokenizer = Tokenizer(num_words=20000, lower=False, split=' ')
         tokenizer.fit_on_texts(x_train)
         x_train = tokenizer.texts_to_sequences(x_train)
         x_test = tokenizer.texts_to_sequences(x_test)
 
-        x_train = pad_sequences(x_train, padding='pre')
-        x_test = pad_sequences(x_test, maxlen=34, padding='pre')
-        #x_train = x_train.reshape(x_train.shape[0], x_train.shape[1], 1)
-        #x_test = x_test.reshape(x_test.shape[0], x_test.shape[1], 1)
+        x_train = pad_sequences(x_train, maxlen=34, padding='post')
+        x_test = pad_sequences(x_test, maxlen=34, padding='post')
+
+
+        df = pd.DataFrame.from_dict(zip(x_train, y_train))
+        df.to_csv('op.csv', index=False)
+
+        x_train = x_train.reshape(x_train.shape[0], x_train.shape[1], 1)
+        x_test = x_test.reshape(x_test.shape[0], x_test.shape[1], 1)
+
+        
 
         return x_train, y_train, x_test, y_test
 
@@ -136,4 +141,4 @@ if __name__ == '__main__':
     
     agent = Agent()
     agent.train(*agent.preprocess_data(train_data))
-    agent.save_model()
+    #agent.save_model()
