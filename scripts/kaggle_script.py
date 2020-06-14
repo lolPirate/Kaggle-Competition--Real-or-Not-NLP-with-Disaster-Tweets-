@@ -9,15 +9,16 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.feature_extraction.text import TfidfVectorizer
-from keras.preprocessing.text import Tokenizer
-from keras.preprocessing.sequence import pad_sequences
-from keras.models import Sequential
-from keras.layers import LSTM, Dense, Dropout, Embedding, Bidirectional
-from keras.models import load_model
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Dropout, Embedding, Bidirectional
+from tensorflow.keras.models import load_model
 
 
 
 class Data_Loader():
+
     def __init__(self, data_folder_path):
         self.DATA_FOLDER_PATH = os.path.normpath(data_folder_path)
 
@@ -71,19 +72,19 @@ class Data_Loader():
         data['text'] = data['text'].apply(lambda x: self.remove_emojis(x))
         data['text'] = data['text'].apply(lambda x: self.remove_punctuations(x))
         data['text'] = data['text'].apply(lambda x: self.remove_control_characters(x))
-        extra_chars = "".join(self.char_counter(data['text'])[63:])
+        extra_chars = "".join(self.char_counter(data['text'])[64:])
         data['text'] = data['text'].apply(lambda x: self.remove_unknown_characters(x, extra_chars))
         data['text'] = data['text'].apply(lambda x: self.remove_extra_spaces(x))
         data = data[['text', 'target']]
         data = data.drop_duplicates()
-
         return data
 
 class Disaster_Prediction_Model():
+
     def create_model(self):
         model = Sequential()
         #model.add(Embedding(20000, 128, mask_zero=True))
-        model.add(Bidirectional(LSTM(64, return_sequences=True, input_shape=(34,1))))
+        model.add(Bidirectional(LSTM(64, return_sequences=True, input_shape=(31,1))))
         model.add(Dropout(0.2))
         model.add(Bidirectional(LSTM(64, return_sequences=True)))
         model.add(Dropout(0.2))
@@ -112,17 +113,14 @@ class Agent():
         x_train = tokenizer.texts_to_sequences(x_train)
         x_test = tokenizer.texts_to_sequences(x_test)
 
-        x_train = pad_sequences(x_train, maxlen=34, padding='post')
-        x_test = pad_sequences(x_test, maxlen=34, padding='post')
-
+        x_train = pad_sequences(x_train, maxlen=31, padding='post')
+        x_test = pad_sequences(x_test, maxlen=31, padding='post')
 
         df = pd.DataFrame.from_dict(zip(x_train, y_train))
         df.to_csv('op.csv', index=False)
 
         x_train = x_train.reshape(x_train.shape[0], x_train.shape[1], 1)
         x_test = x_test.reshape(x_test.shape[0], x_test.shape[1], 1)
-
-        
 
         return x_train, y_train, x_test, y_test
 
