@@ -1,19 +1,26 @@
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1' 
-import string
-import unicodedata
-import re
-import numpy as np
-from collections import Counter
-import pandas as pd
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split, StratifiedKFold
-from sklearn.feature_extraction.text import TfidfVectorizer
-from keras.preprocessing.text import Tokenizer
-from keras.preprocessing.sequence import pad_sequences
-from keras.models import Sequential
-from keras.layers import LSTM, Dense, Dropout, Embedding, Bidirectional
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
+
+
+
+from nltk.stem import WordNetLemmatizer
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+import nltk
 from keras.models import load_model
+from keras.layers import LSTM, Dense, Dropout, Embedding, Bidirectional
+from keras.models import Sequential
+from keras.preprocessing.sequence import pad_sequences
+from keras.preprocessing.text import Tokenizer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.model_selection import train_test_split, StratifiedKFold
+import matplotlib.pyplot as plt
+import pandas as pd
+from collections import Counter
+import numpy as np
+import re
+import unicodedata
+import string
 
 
 
@@ -42,6 +49,10 @@ class Data_Loader():
                        "]+", flags=re.UNICODE)
         return(p.sub(r' ', data))
 
+    def remove_social_words(self, data):
+        p = re.compile('[@,#]\w+')
+        return re.sub(p, ' ', data.strip())
+
     def remove_punctuations(self, data):
         p = str.maketrans("","",string.punctuation)
         #p = str.maketrans(string.punctuation, ' '*len(string.punctuation))
@@ -64,16 +75,44 @@ class Data_Loader():
     def remove_extra_spaces(self, data):
         p = re.compile('\s\s+')
         return re.sub(p, ' ', data.strip())
+    
+    def convert_lower(self, data):
+        return data.lower()
+
+    def remove_stopwords(self, data):
+        sw = set(stopwords.words('english'))
+        word_tokens = word_tokenize(data)
+        filtered_sentence = [w for w in word_tokens if not w in sw]
+        return " ".join(filtered_sentence)
+    
+    def remove_numbers(self, data):
+        p = str.maketrans("","",'0123456789')
+        return data.translate(p)
+
+    def apply_lemmatization(self, data):
+        tokens = word_tokenize(data)
+        return " ".join([WordNetLemmatizer().lemmatize(i) for i in tokens])
+    
+    def remove_nouns(self, data):
+        tokens = word_tokenize(data)
+        return " ".join([text for text, tag in nltk.tag.pos_tag(tokens) if not tag in ['NNP','NNPS']])
+
 
     def clean_data(self, data):
         data['text'] = data['text'].apply(lambda x: self.remove_html(x))
         data['text'] = data['text'].apply(lambda x: self.remove_url(x))
         data['text'] = data['text'].apply(lambda x: self.remove_emojis(x))
+        data['text'] = data['text'].apply(lambda x: self.remove_social_words(x))
         data['text'] = data['text'].apply(lambda x: self.remove_punctuations(x))
         data['text'] = data['text'].apply(lambda x: self.remove_control_characters(x))
         extra_chars = "".join(self.char_counter(data['text'])[63:])
         data['text'] = data['text'].apply(lambda x: self.remove_unknown_characters(x, extra_chars))
         data['text'] = data['text'].apply(lambda x: self.remove_extra_spaces(x))
+        data['text'] = data['text'].apply(lambda x: self.convert_lower(x))
+        data['text'] = data['text'].apply(lambda x: self.remove_stopwords(x))
+        data['text'] = data['text'].apply(lambda x: self.remove_numbers(x))
+        data['text'] = data['text'].apply(lambda x: self.apply_lemmatization(x))
+        data['text'] = data['text'].apply(lambda x: self.remove_nouns(x))
         data = data[['text', 'target']]
         data = data.drop_duplicates()
 
@@ -82,10 +121,10 @@ class Data_Loader():
 class Disaster_Prediction_Model():
     def create_model(self):
         model = Sequential()
-        #model.add(Embedding(20000, 128, mask_zero=True))
-        model.add(Bidirectional(LSTM(64, return_sequences=True, input_shape=(34,1))))
+        model.add(Embedding(12802, 64, mask_zero=True))
+        model.add(Bidirectional(LSTM(128, return_sequences=True)))
         model.add(Dropout(0.2))
-        model.add(Bidirectional(LSTM(64, return_sequences=True)))
+        model.add(Bidirectional(LSTM(128, return_sequences=True)))
         model.add(Dropout(0.2))
         model.add(Bidirectional(LSTM(64, return_sequences=True)))
         model.add(Dropout(0.2))
@@ -107,20 +146,20 @@ class Agent():
 
         x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.25, stratify=y, shuffle=True)
 
-        tokenizer = Tokenizer(num_words=20000, lower=False, split=' ')
+        tokenizer = Tokenizer(num_words=12802, split=' ')
         tokenizer.fit_on_texts(x_train)
         x_train = tokenizer.texts_to_sequences(x_train)
         x_test = tokenizer.texts_to_sequences(x_test)
 
-        x_train = pad_sequences(x_train, maxlen=34, padding='post')
-        x_test = pad_sequences(x_test, maxlen=34, padding='post')
+        x_train = pad_sequences(x_train, padding='post')
+        x_test = pad_sequences(x_test, padding='post')
 
 
         df = pd.DataFrame.from_dict(zip(x_train, y_train))
         df.to_csv('op.csv', index=False)
 
-        x_train = x_train.reshape(x_train.shape[0], x_train.shape[1], 1)
-        x_test = x_test.reshape(x_test.shape[0], x_test.shape[1], 1)
+        #x_train = x_train.reshape(x_train.shape[0], x_train.shape[1], 1)
+        #x_test = x_test.reshape(x_test.shape[0], x_test.shape[1], 1)
 
         
 
