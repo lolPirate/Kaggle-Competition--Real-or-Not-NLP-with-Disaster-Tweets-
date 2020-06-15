@@ -163,11 +163,29 @@ class Agent():
         return x_train, y_train, x_test, y_test
 
     def train(self, x_train, y_train, x_test, y_test):
-        self.model.fit(x_train, y_train, epochs=10, batch_size=32, validation_data=(x_test, y_test))
+        history = self.model.fit(x_train, y_train, epochs=10, batch_size=32, validation_data=(x_test, y_test))
+        return history
 
     def save_model(self):
         self.model.save('Basic-Model.h5')
 
+    def plot_accuracy_curves(self, history):
+        plt.plot(history.history['accuracy'])
+        plt.plot(history.history['val_accuracy'])
+        plt.title('model accuracy')
+        plt.ylabel('accuracy')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'test'], loc='upper left')
+        plt.show()
+
+    def plot_loss_curves(self, history):
+        plt.plot(history.history['loss'])
+        plt.plot(history.history['val_loss'])
+        plt.title('model loss')
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'test'], loc='upper left')
+        plt.show()
 
 if __name__ == '__main__':
     data_folder_path = r'./data/'
@@ -176,5 +194,8 @@ if __name__ == '__main__':
     train_data = data_loader.clean_data(train_data)
     
     agent = Agent()
-    agent.train(*agent.preprocess_data(train_data))
+    history = agent.train(*agent.preprocess_data(train_data))
+    agent.plot_accuracy_curves(history)
+    agent.plot_loss_curves(history)
+    #agent.save_model()
     #agent.save_model()
