@@ -96,6 +96,14 @@ class Data_Loader():
         tokens = word_tokenize(data)
         return " ".join([text for text, tag in nltk.tag.pos_tag(tokens) if not tag in ['NNP','NNPS']])
 
+    def remove_low_freq_words(self, data):
+        vocab_freq = Counter()
+        for i in list(data):
+            text_list = word_tokenize(i)
+            for j in text_list:
+                vocab_freq[j] +=1
+        filtered_vocab_freq = {k:v for k,v in vocab_freq.items() if v!=1 and v!=2 and v!=3}
+        return [' '.join([word for word in seq.split() if word in filtered_vocab_freq.keys()]) for seq in data]
 
     def clean_data(self, data):
         data['text'] = data['text'].apply(lambda x: self.remove_html(x))
@@ -112,6 +120,7 @@ class Data_Loader():
         data['text'] = data['text'].apply(lambda x: self.remove_numbers(x))
         data['text'] = data['text'].apply(lambda x: self.apply_lemmatization(x))
         data['text'] = data['text'].apply(lambda x: self.remove_nouns(x))
+        data['text'] = self.remove_low_freq_words(data['text'])
         data = data[['text', 'target']]
         data = data.drop_duplicates()
         return data
@@ -120,14 +129,14 @@ class Disaster_Prediction_Model():
 
     def create_model(self):
         model = Sequential()
-        model.add(Embedding(12802, 64, mask_zero=True))
-        model.add(Bidirectional(LSTM(128, return_sequences=True)))
-        model.add(Dropout(0.2))
-        model.add(Bidirectional(LSTM(128, return_sequences=True)))
-        model.add(Dropout(0.2))
+        model.add(Embedding(2880, 64, mask_zero=True))
         model.add(Bidirectional(LSTM(64, return_sequences=True)))
         model.add(Dropout(0.2))
-        model.add(Bidirectional(LSTM(64, return_sequences=False)))
+        model.add(Bidirectional(LSTM(96, return_sequences=True)))
+        model.add(Dropout(0.2))
+        model.add(Bidirectional(LSTM(96, return_sequences=True)))
+        model.add(Dropout(0.2))
+        model.add(Bidirectional(LSTM(96, return_sequences=False)))
         model.add(Dropout(0.2))
         model.add(Dense(1, activation='sigmoid'))
         model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
@@ -143,9 +152,9 @@ class Agent():
         x = data['text'].values
         y = data['target'].values
 
-        x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.25, stratify=y, shuffle=True)
+        x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.1, stratify=y, shuffle=True)
 
-        tokenizer = Tokenizer(num_words=12802, split=' ')
+        tokenizer = Tokenizer(num_words=2880, split=' ')
         tokenizer.fit_on_texts(x_train)
         x_train = tokenizer.texts_to_sequences(x_train)
         x_test = tokenizer.texts_to_sequences(x_test)
@@ -188,7 +197,7 @@ class Agent():
         plt.show()
 
 if __name__ == '__main__':
-    data_folder_path = r'./data/'
+    data_folder_path = r'../data/'
     data_loader = Data_Loader(data_folder_path)
     train_data = data_loader.load_data('train')
     train_data = data_loader.clean_data(train_data)
